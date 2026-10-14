@@ -227,12 +227,12 @@ section{padding-block:clamp(64px,10vw,110px)}
 .postage{position:absolute;top:18px;right:18px;width:64px;height:76px;border:3px dotted var(--fjord);border-radius:4px;display:grid;place-items:center;color:var(--fjord);font:700 .7rem var(--f-mono);text-align:center;transform:rotate(4deg);background:var(--surface)}
 form{display:grid;gap:12px;align-content:start;padding-top:56px}
 label{font-weight:700;font-size:.9rem;display:grid;gap:5px}
-input,textarea{font:inherit;color:var(--ink);background:transparent;border:0;border-bottom:2px solid var(--line-soft);border-radius:0;padding:8px 2px;width:100%}
+input,textarea{font:inherit;color:var(--ink);background:var(--surface-2);border:2px solid transparent;border-bottom-color:var(--line-soft);border-radius:10px 10px 0 0;padding:10px 12px;width:100%}
 input:focus,textarea:focus{outline:none;border-color:var(--acc)}
-textarea{min-height:100px;resize:vertical;background:repeating-linear-gradient(transparent 0 31px,var(--line-soft) 31px 33px)}
+textarea{min-height:120px;resize:vertical}
 .formnote{font-size:.9rem;color:var(--muted);min-height:1.4em}
 .hp{position:absolute;left:-9999px}
-footer{padding-block:40px 200px;color:var(--muted);font-size:.9rem;display:flex;align-items:center;justify-content:center;gap:10px}
+footer{padding-block:40px 220px;color:var(--muted);font-size:.9rem;display:flex;align-items:center;justify-content:center;gap:10px}
 .mailme{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:2px solid var(--line-soft);color:var(--ink);text-decoration:none;transition:transform .15s,border-color .15s}
 .mailme:hover{transform:translateY(-2px);border-color:var(--saffron)}
 .mailme svg{width:20px;height:20px}
@@ -250,10 +250,13 @@ footer{padding-block:40px 200px;color:var(--muted);font-size:.9rem;display:flex;
 .stage .ground{position:absolute;left:20%;right:20%;bottom:2.5%;height:14px;border-radius:50%;background:radial-gradient(closest-side,rgba(60,30,10,.22),transparent)}
 .bubble{position:absolute;right:calc(100% - 18px);bottom:62%;width:min(300px,calc(100vw - 210px));background:var(--bubble);color:var(--ink);border:2px solid #111;border-radius:28px;padding:16px 20px;box-shadow:var(--shadow);pointer-events:auto;transition:opacity .25s,transform .25s;transform-origin:bottom right}
 :root{--bubble:rgba(255,214,10,.4)}
-#bubble{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#bubble{-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.dock.tuck{opacity:.25;transform:translateX(40%);transition:opacity .3s,transform .3s}
+.formnote a{color:var(--saffron);font-weight:700}
+#contact form button[type=submit]:disabled{opacity:.6;cursor:wait}
 .bubble.hide{opacity:0;transform:scale(.8);pointer-events:none}
 .bubble .who{display:flex;justify-content:space-between;align-items:center;color:var(--saffron);margin-bottom:4px}
-.bubble .guide-label{font-size:1.25rem;line-height:1.1;color:var(--saffron);-webkit-text-stroke:.6px #111;paint-order:stroke fill;text-shadow:0 0 .5px #111}
+.bubble .guide-label{font-size:1.25rem;line-height:1.1;color:var(--saffron);-webkit-text-stroke:.35px #111}
 .bubble .x{border:0;background:none;color:var(--muted);font-size:1.2rem;cursor:pointer;line-height:1;padding:2px 6px}
 .bubble p{font-size:.95rem;line-height:1.45}
 .bubble .next{margin-top:6px;font:700 .7rem var(--f-display);background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:4px 9px;cursor:pointer}
@@ -681,7 +684,7 @@ function setActive(i){
   next.textContent = i===sections.length-1 ? "Back to start ↺" : "Next stop: "+sections[i+1].dataset.stop+" →";
   window.__pose=s.dataset.pose;
   bubble.classList.remove("hide"); clearTimeout(window.__bt);
-  if(innerWidth<640) window.__bt=setTimeout(()=>bubble.classList.add("hide"),7000);
+  if(innerWidth<640||s.id==="contact") window.__bt=setTimeout(()=>bubble.classList.add("hide"),s.id==="contact"?3500:7000);
   dock.classList.toggle("big", i===0 && innerWidth>=1100);
 }
 say.style.transition="opacity .15s";
@@ -704,17 +707,22 @@ document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{
   try{navigator.clipboard.writeText(t).then(done,sel)}catch(e){sel()}
 });
 
-// contact form (Netlify Forms on the live site)
+// contact form: sends through Netlify Forms; if that isn't available, opens Gmail with the message filled in
 const form=document.getElementById("contactForm"), note=document.getElementById("formNote");
+const gmailLink=fd=>"https://mail.google.com/mail/?view=cm&fs=1&to=purvasikarwar@gmail.com&su="+encodeURIComponent("Hej Purva! Message from "+(fd.get("name")||"your portfolio"))+"&body="+encodeURIComponent((fd.get("message")||"")+"\n\n— "+(fd.get("name")||"")+" ("+(fd.get("email")||"")+")");
 form.addEventListener("submit",e=>{
   e.preventDefault();
-  if(location.protocol==="file:"){note.textContent="This form sends messages on the live Netlify site. For now, please email purvasikarwar@gmail.com.";return}
-  note.textContent="Sending…";
-  fetch("/",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams(new FormData(form)).toString()})
-   .then(r=>{if(!r.ok)throw 0;form.reset();note.textContent="Thanks! Your message reached Purva.";window.__hop=performance.now()})
-   .catch(()=>note.textContent="That didn't go through. Please email purvasikarwar@gmail.com instead.");
+  const fd=new FormData(form), btn=form.querySelector("button[type=submit]");
+  const fallback=()=>{note.innerHTML='Couldn\'t send from here. <a href="'+gmailLink(fd)+'" target="_blank" rel="noopener">Open it in Gmail instead →</a> (your message is already filled in)';btn.disabled=false};
+  if(location.protocol==="file:"){fallback();return}
+  note.textContent="Sending…"; btn.disabled=true;
+  fetch("/",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams(fd).toString()})
+   .then(r=>{if(!r.ok)throw 0;form.reset();btn.disabled=false;note.textContent="Thanks! Your postcard reached Purva. She'll reply soon.";window.__hop=performance.now()})
+   .catch(fallback);
 });
-
+// keep the guide out of the way while someone writes a postcard
+form.addEventListener("focusin",()=>{bubble.classList.add("hide");dock.classList.add("tuck")});
+form.addEventListener("focusout",()=>setTimeout(()=>{if(!form.contains(document.activeElement))dock.classList.remove("tuck")},50));
 /* ---------------- mini-Purva: real avatar poses + turntable ---------------- */
 const fig=document.getElementById("fig"), imgs={};
 fig.querySelectorAll("img").forEach(im=>imgs[im.dataset.v]=im);
